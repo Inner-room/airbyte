@@ -41,6 +41,31 @@ dependencies {
     testImplementation "org.testcontainers:postgresql:1.15.1"
 }
 
+// we want to be able to access the generated db files from config/init when we build the server docker image.
+task copySeed(type: Copy, dependsOn: [project(':airbyte-config:init').processResources]) {
+//    sourceSets {
+//        copySeed {
+//            resources {
+//                srcDirs = ["${project(':airbyte-config:init').sourceSets.output.resourcesDir}"]
+//            }
+//        }
+//    }
+    dependsOn(project(':airbyte-config:init').processResources)
+    println("build file")
+    println(new File(project(':airbyte-config:init').buildDir, "/resources/main/config").list())
+    copy {
+        dependsOn(project(':airbyte-config:init').tasks.processResources)
+        println("build file in copy")
+        println(new File(project(':airbyte-config:init').buildDir, "/resources/main/config").list())
+        from "${project(':airbyte-config:init').buildDir}/resources/main/config"
+        into "${buildDir}/config_init/resources/main/config"
+    }
+}
+
+// need to make sure that the files are in the resource directory before copying.
+//project.tasks.copySeed.mustRunAfter(project(':airbyte-config:init').tasks.processResources)
+assemble.dependsOn(project.tasks.copySeed)
+
 application {
     mainClass = 'io.airbyte.server.ServerApp'
 }
@@ -60,7 +85,6 @@ run {
     environment "AIRBYTE_VERSION", env.VERSION
     environment "AIRBYTE_ROLE", System.getenv('AIRBYTE_ROLE')
     environment "TEMPORAL_HOST", "localhost:7233"
-
 }
 
 // generate seed for each yaml file.
